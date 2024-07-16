@@ -6,6 +6,9 @@ import numpy as np
 import array as arr
 import configuration as cfg
 from scipy.ndimage import convolve1d
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import proj3d
+import matplotlib.animation as animation
 
 def read8byte(x):
     return struct.unpack('<hhhh', x)
@@ -54,7 +57,10 @@ class PointCloudProcessCFG: #
             dim+=1
         self.couplingSignatureBinFrontIdx = 5
         self.couplingSignatureBinRearIdx  = 4
-        self.sumCouplingSignatureArray = np.zeros((self.frameConfig.numTxAntennas,self.frameConfig.numRxAntennas,self.couplingSignatureBinFrontIdx+self.couplingSignatureBinRearIdx),dtype = np.complex)
+        # self.sumCouplingSignatureArray = np.zeros((self.frameConfig.numTxAntennas,self.frameConfig.numRxAntennas,self.couplingSignatureBinFrontIdx+self.couplingSignatureBinRearIdx),dtype = np.complex)
+        self.sumCouplingSignatureArray = np.zeros((self.frameConfig.numTxAntennas, self.frameConfig.numRxAntennas,
+                                                   self.couplingSignatureBinFrontIdx + self.couplingSignatureBinRearIdx),
+                                                  dtype=complex)
 
 class RawDataReader:
     def __init__(self,path):
@@ -158,7 +164,8 @@ def frame2pointcloud(frame,pointCloudProcessCFG):
 
     cfarResult=np.zeros(dopplerResultInDB.shape, bool)
     if pointCloudProcessCFG.EnergyTop128:
-        top_size=128
+        # top_size=128
+        top_size = 10
         energyThre128=np.partition(dopplerResultInDB.ravel(), 128*256-top_size-1)[128*256-top_size-1]
         cfarResult[dopplerResultInDB>energyThre128]=True
 
@@ -206,6 +213,21 @@ if __name__=='__main__':
     shift_arr=cfg.MMWAVE_RADAR_LOC
     bin_reader=RawDataReader(bin_filename)
 
+
+
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.set_xlabel('X', color='red')
+    ax.set_ylabel('Y', color='red')
+    ax.set_zlabel('Z', color='red')
+
+    # Initialize lists to store all points
+    all_x = []
+    all_y = []
+    all_z = []
+
+
     for frame_no in range(total_frame_number):
         bin_frame=bin_reader.getNextFrame(pointCloudProcessCFG.frameConfig)
         np_frame=bin2np_frame(bin_frame)
@@ -218,5 +240,17 @@ if __name__=='__main__':
         raw_points[:,:3]=raw_points[:,:3]+shift_arr
         raw_points=reg_data(raw_points, 128) # if the points number is greater than 128, just randomly sample 128 points; if the points number is less than 128, randomly duplicate some points
         print('Frame %d:'%(frame_no), raw_points.shape)
+        # print(raw_points)
+        x1 = raw_points[:, 0]
+        y1 = raw_points[:, 1]
+        z1 = raw_points[:, 2]
+        E1 = raw_points[:, 4]
+        # print(E1)
+        # ax.scatter(x1, y1, z1)
+        all_x.extend(x1)
+        all_y.extend(y1)
+        all_z.extend(z1)
+    ax.scatter(all_x, all_y, all_z)
+    plt.show()
 
     bin_reader.close()
